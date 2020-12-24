@@ -39,3 +39,6 @@ add_executable(AoRGhostManager WIN32 ${SOURCES} ${HEADERS} ${RESOURCES} ${UIS})
 find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
 
 target_link_libraries(AoRGhostManager PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
+
+# VS stuff
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT AoRGhostManager)

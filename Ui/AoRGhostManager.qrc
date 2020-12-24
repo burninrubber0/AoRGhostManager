@@ -1,4 +1,5 @@
 <RCC>
-    <qresource prefix="AoRGhostManager">
+    <qresource prefix="/AoRGhostManager">
+        <file>agm_icon.ico</file>
     </qresource>
 </RCC>
