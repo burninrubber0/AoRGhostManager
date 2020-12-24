@@ -26,14 +26,16 @@ set(UIS
 	Ui/AoRGhostManager.ui
 	)
 
-# Use if CMAKE_PREFIX_PATH isn't set in env variables
+# Use if Qt6_DIR isn't set in PATH
 #set(Qt6_DIR C:\\Qt\\6.0.0\\msvc2019_64\\lib\\cmake\\Qt6)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-add_executable(AoRGhostManager WIN32 ${SOURCES} ${HEADERS} ${RESOURCES} ${UIS})
+set(APP_ICON_RESOURCE_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/Ui/Icon.rc")
+
+add_executable(AoRGhostManager WIN32 ${SOURCES} ${HEADERS} ${RESOURCES} ${UIS} ${APP_ICON_RESOURCE_WINDOWS})
 
 # Qt
 find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
