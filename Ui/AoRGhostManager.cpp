@@ -16,10 +16,7 @@
 bool AoRGhostManager::openGhosts()
 {
 	std::ifstream playerGhosts, newGhosts;
-	QString newGhostsPath, defaultGhostsPath;
-
-	defaultGhostsPath = QStandardPaths::standardLocations(QStandardPaths::HomeLocation).at(0)
-		+ "/AppData/LocalLow/Funselektor Labs/art of rally/cloud";
+	QString newGhostsPath;
 
 	ghostsPath = QFileDialog::getOpenFileName(this, tr("Select your Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
 	newGhostsPath = QFileDialog::getOpenFileName(this, tr("Select new Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
@@ -28,11 +25,8 @@ bool AoRGhostManager::openGhosts()
 	newGhosts.open(newGhostsPath.QString::toStdString(), std::ios::in);
 	if (playerGhosts.fail() || newGhosts.fail())
 	{
-		QMessageBox e;
-		e.setText("Error opening ghosts file");
-		e.exec();
-
-		return EXIT_FAILURE;
+		QMessageBox::critical(this, "Error", "Failed to open ghosts file");
+		return true;
 	}
 	std::getline(playerGhosts, playerGhostsData);
 	std::getline(newGhosts, newGhostsData);
@@ -41,7 +35,7 @@ bool AoRGhostManager::openGhosts()
 
 	loadTables(playerGhostsData, newGhostsData);
 
-	return EXIT_SUCCESS;
+	return false;
 }
 
 // Exit program
@@ -51,15 +45,18 @@ void AoRGhostManager::exitGm()
 }
 
 // Transfer item from right to left
-void AoRGhostManager::addGhosts()
+void AoRGhostManager::transferLeft()
 {
+	// If a ghost is selected in the right table
 	if (ui.ghostsRight->selectionModel()->hasSelection())
 	{
+		// Then for each selected row
 		foreach(const QModelIndex &index, ui.ghostsRight->selectionModel()->selectedRows())
 		{
 			bool hasPushed = false;
 			bool hasReplaced = false;
 
+			// Move both the vector items and table items to the left table
 			for (int i = 0; i < items.size() - 1; ++i)
 			{
 				QTableWidgetItem* itmMap = new QTableWidgetItem();
@@ -71,6 +68,7 @@ void AoRGhostManager::addGhosts()
 				itmCar->setText(ui.ghostsRight->item(index.row(), 2)->data(Qt::DisplayRole).toString());
 				itmTime->setText(ui.ghostsRight->item(index.row(), 3)->data(Qt::DisplayRole).toString());
 
+				// If ghost map/class matches existing, replace existing (red)
 				if (itmMap->text() == ui.ghostsLeft->item(i, 0)->text()
 					&& itmClass->text() == ui.ghostsLeft->item(i, 1)->text()
 					&& hasPushed == false && hasReplaced == false)
@@ -86,6 +84,7 @@ void AoRGhostManager::addGhosts()
 					ui.ghostsLeft->setItem(i, 2, itmCar);
 					ui.ghostsLeft->setItem(i, 3, itmTime);
 				}
+				// Else add new entry (green)
 				else if (itmMap->text() != ui.ghostsLeft->item(i, 0)->text()
 					&& itmClass->text() != ui.ghostsLeft->item(i, 1)->text()
 					&& hasPushed == false && hasReplaced == false)
@@ -107,6 +106,7 @@ void AoRGhostManager::addGhosts()
 	}
 }
 
+// This will be deleted soon
 void AoRGhostManager::removeGhosts()
 {
 	if (ui.ghostsLeft->selectionModel()->hasSelection())
@@ -124,8 +124,17 @@ void AoRGhostManager::removeGhosts()
 	}
 }
 
+// Save ghosts to file
 void AoRGhostManager::saveGhosts(QString path)
 {
+	// Save backup ghosts file
+	std::ofstream backupFile;
+	QString backupPath = defaultGhostsPath + "/Ghosts.original.txt";
+	backupFile.open(QString(backupPath).toStdString(), std::ios::out);
+	backupFile << playerGhostsDataBck;
+	backupFile.close();
+
+	// Overwrite original ghosts file with altered data
 	std::ofstream ghostsFile;
 	ghostsFile.open(QString(path).toStdString(), std::ios::out);
 	ghostsFile << "{\"Items\":[";
@@ -139,78 +148,105 @@ void AoRGhostManager::saveGhosts(QString path)
 	ghostsFile.close();
 }
 
+// Save ghosts to a different location than previously specified
 void AoRGhostManager::saveGhostsAs()
 {
 	QString customGhostsPath = QFileDialog::getSaveFileName(this, tr("Save File"), ghostsPath, "");
 	saveGhosts(customGhostsPath);
 }
 
+// Bring up the about window
 void AoRGhostManager::about()
 {
 	QMessageBox::about(this, "About", "<p align='center'>Art of Rally Ghost Manager<br>by burninrubber0");
 }
 
 // ***** UI *****
+// Connect signals to slots
 void AoRGhostManager::connectActions()
 {
 	connect(ui.actionOpen, &QAction::triggered, this, &AoRGhostManager::openGhosts);
 	connect(ui.actionSave, &QAction::triggered, this, [this] { AoRGhostManager::saveGhosts(ghostsPath); });
 	connect(ui.actionSaveAs, &QAction::triggered, this, &AoRGhostManager::saveGhostsAs);
 	connect(ui.actionExit, &QAction::triggered, this, &AoRGhostManager::exitGm);
-	connect(ui.btnAddGhosts, &QPushButton::clicked, this, &AoRGhostManager::addGhosts);
+	connect(ui.btnTransferLeft, &QPushButton::clicked, this, &AoRGhostManager::transferLeft);
 	connect(ui.btnRemoveGhosts, &QPushButton::clicked, this, &AoRGhostManager::removeGhosts);
 	connect(ui.actionAbout, &QAction::triggered, this, &AoRGhostManager::about);
 }
 
+// Load ghost data into tables
 void AoRGhostManager::loadTables(std::string g0, std::string g1)
 {
-	parseGhostData(g0, false);
-	parseGhostData(g1, true);
-	setUpTables();
+	// Back up original data before anything else
+	playerGhostsDataBck = playerGhostsData;
+	newGhostsDataBck = newGhostsData;
 
-	for (int i = 0; i < items.size(); ++i)
+	// If no error was encountered
+	if (parseGhostData(g0, false) == false && parseGhostData(g1, true) == false)
 	{
-		QTableWidgetItem* itm0 = new QTableWidgetItem;
-		QTableWidgetItem* itm1 = new QTableWidgetItem;
-		QTableWidgetItem* itm2 = new QTableWidgetItem;
-		QTableWidgetItem* itm3 = new QTableWidgetItem;
-		itm0->setText(QString::fromStdString(maps.at(i)));
-		itm1->setText(QString::fromStdString(classes.at(i)));
-		itm2->setText(QString::fromStdString(cars.at(i)));
-		itm3->setText(QString::fromStdString(times.at(i)));
-		ui.ghostsLeft->setItem(i, 0, itm0);
-		ui.ghostsLeft->setItem(i, 1, itm1);
-		ui.ghostsLeft->setItem(i, 2, itm2);
-		ui.ghostsLeft->setItem(i, 3, itm3);
-	}
+		setUpTables();
 
-	for (int i = 0; i < newItems.size(); ++i)
-	{
-		QTableWidgetItem* itm0 = new QTableWidgetItem;
-		QTableWidgetItem* itm1 = new QTableWidgetItem;
-		QTableWidgetItem* itm2 = new QTableWidgetItem;
-		QTableWidgetItem* itm3 = new QTableWidgetItem;
-		itm0->setText(QString::fromStdString(newMaps.at(i)));
-		itm1->setText(QString::fromStdString(newClasses.at(i)));
-		itm2->setText(QString::fromStdString(newCars.at(i)));
-		itm3->setText(QString::fromStdString(newTimes.at(i)));
-		ui.ghostsRight->setItem(i, 0, itm0);
-		ui.ghostsRight->setItem(i, 1, itm1);
-		ui.ghostsRight->setItem(i, 2, itm2);
-		ui.ghostsRight->setItem(i, 3, itm3);
-	}
+		// Add data from vectors to player table
+		for (int i = 0; i < items.size(); ++i)
+		{
+			QTableWidgetItem* itm0 = new QTableWidgetItem;
+			QTableWidgetItem* itm1 = new QTableWidgetItem;
+			QTableWidgetItem* itm2 = new QTableWidgetItem;
+			QTableWidgetItem* itm3 = new QTableWidgetItem;
+			itm0->setText(QString::fromStdString(maps.at(i)));
+			itm1->setText(QString::fromStdString(classes.at(i)));
+			itm2->setText(QString::fromStdString(cars.at(i)));
+			itm3->setText(QString::fromStdString(times.at(i)));
+			ui.ghostsLeft->setItem(i, 0, itm0);
+			ui.ghostsLeft->setItem(i, 1, itm1);
+			ui.ghostsLeft->setItem(i, 2, itm2);
+			ui.ghostsLeft->setItem(i, 3, itm3);
+		}
 
-	ui.actionSave->setEnabled(true);
-	ui.actionSaveAs->setEnabled(true);
+		// Add data from new vectors to new table
+		for (int i = 0; i < newItems.size(); ++i)
+		{
+			QTableWidgetItem* itm0 = new QTableWidgetItem;
+			QTableWidgetItem* itm1 = new QTableWidgetItem;
+			QTableWidgetItem* itm2 = new QTableWidgetItem;
+			QTableWidgetItem* itm3 = new QTableWidgetItem;
+			itm0->setText(QString::fromStdString(newMaps.at(i)));
+			itm1->setText(QString::fromStdString(newClasses.at(i)));
+			itm2->setText(QString::fromStdString(newCars.at(i)));
+			itm3->setText(QString::fromStdString(newTimes.at(i)));
+			ui.ghostsRight->setItem(i, 0, itm0);
+			ui.ghostsRight->setItem(i, 1, itm1);
+			ui.ghostsRight->setItem(i, 2, itm2);
+			ui.ghostsRight->setItem(i, 3, itm3);
+		}
+
+		// Enable save actions after the loops have completed
+		ui.actionSave->setEnabled(true);
+		ui.actionSaveAs->setEnabled(true);
+	}
 }
 
-void AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
+// Read ghost data into vectors
+bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 {
+	std::string start;
 	std::string tmpItem;
 
 	// Save each item
 	for (int i = 0; i < ghosts.length(); ++i)
 	{
+		// Check that start of file is correct
+		if (i < 11)
+			start += ghosts[i];
+		if (i == 10)
+		{
+			if (start != "{\"Items\":[{")
+			{
+				QMessageBox::critical(this, "Error parsing ghosts file", "Invalid ghosts data");
+				return true;
+			}
+		}
+
 		// Track braces to determine item start/end
 		if (ghosts[i] == '{')
 			numOpenBraces += 1;
@@ -238,12 +274,20 @@ void AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 		// Save the last item
 		if (i != 0 && numOpenBraces == 0 && numOpenBrackets == 0)
 		{
-			tmpItem.resize(tmpItem.length());
 			if (isNew == false)
 				items.push_back(tmpItem);
 			else
 				newItems.push_back(tmpItem);
 		}
+	}
+
+	// Check if all brackets and braces are closed at end
+	if (numOpenBraces != 0 || numOpenBrackets != 0)
+	{
+		QString text = "Unclosed braces: " + QString::number(numOpenBraces)
+			+ ", unclosed brackets: " + QString::number(numOpenBrackets);
+		QMessageBox::critical(this, "Error parsing ghosts file", text);
+		return true;
 	}
 
 	if (isNew == false)
@@ -252,7 +296,6 @@ void AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 		for (int i = 0; i < items.size(); ++i)
 		{
 			bool recordingValue = false;
-			int tmpNumOpenBraces = 0;
 			int numQuotes = 0;
 			std::string tmpString;
 			std::string tmpFieldName;
@@ -303,12 +346,12 @@ void AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 
 				// Counting braces
 				else if (items.at(i)[j] == '{')
-					tmpNumOpenBraces += 1;
+					numOpenBraces += 1;
 				else if (items.at(i)[j] == '}')
-					tmpNumOpenBraces -= 1;
+					numOpenBraces -= 1;
 
 				// If item complete
-				else if (items.at(i)[j] == ',' && tmpNumOpenBraces == 0)
+				else if (items.at(i)[j] == ',' && numOpenBraces == 0)
 					break;
 
 				// If current char is being recorded but isn't string data
@@ -337,7 +380,6 @@ void AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 		for (int i = 0; i < newItems.size(); ++i)
 		{
 			bool recordingValue = false;
-			int tmpNumOpenBraces = 0;
 			int numQuotes = 0;
 			std::string tmpString;
 			std::string tmpFieldName;
@@ -388,12 +430,12 @@ void AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 
 				// Counting braces
 				else if (newItems.at(i)[j] == '{')
-					tmpNumOpenBraces += 1;
+					numOpenBraces += 1;
 				else if (newItems.at(i)[j] == '}')
-					tmpNumOpenBraces -= 1;
+					numOpenBraces -= 1;
 
 				// If item complete
-				else if (newItems.at(i)[j] == ',' && tmpNumOpenBraces == 0)
+				else if (newItems.at(i)[j] == ',' && numOpenBraces == 0)
 					break;
 
 				// If current char is being recorded but isn't string data
@@ -416,8 +458,13 @@ void AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 			}
 		}
 	}
+	numOpenBraces = 0;
+	numOpenBrackets = 0;
+
+	return false;
 }
 
+// Set up ghost tables with headers and row/column count
 void AoRGhostManager::setUpTables()
 {
 	QStringList hHeaders = { "Map", "Class", "Car", "Time" };

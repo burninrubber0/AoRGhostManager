@@ -6,6 +6,8 @@
 #include <vector>
 
 #include <QMainWindow>
+#include <QStandardPaths>
+#include <QTableWidget>
 
 class AoRGhostManager : public QMainWindow
 {
@@ -17,9 +19,13 @@ public:
 private:
 	Ui::GhostManager ui;
 
+	QString defaultGhostsPath = QStandardPaths::standardLocations(QStandardPaths::HomeLocation).at(0)
+		+ "/AppData/LocalLow/Funselektor Labs/art of rally/cloud";
 	QString ghostsPath;
 	std::string playerGhostsData;
 	std::string newGhostsData;
+	std::string playerGhostsDataBck;
+	std::string newGhostsDataBck;
 	int numOpenBraces = 0;
 	int numOpenBrackets = 0;
 
@@ -37,15 +43,19 @@ private:
 	std::vector<std::string> newCars;
 	std::vector<std::string> newTimes;
 
+	// For editing
+	std::vector<bool> isReplacingPlayerGhost;
+
+
 	void connectActions();
 	void loadTables(std::string g0, std::string g1);
-	void parseGhostData(std::string ghosts, bool isNew);
+	bool parseGhostData(std::string ghosts, bool isNew);
 	void setUpTables();
 
 private slots:
 	bool openGhosts();
 	void exitGm();
-	void addGhosts();
+	void transferLeft();
 	void removeGhosts();
 	void saveGhosts(QString path);
 	void saveGhostsAs();
