@@ -21,11 +21,10 @@ private:
 
 	QString defaultGhostsPath = QStandardPaths::standardLocations(QStandardPaths::HomeLocation).at(0)
 		+ "/AppData/LocalLow/Funselektor Labs/art of rally/cloud";
-	QString ghostsPath;
+	QString ghostsPath, newGhostsPath;
 	std::string playerGhostsData;
 	std::string newGhostsData;
 	std::string playerGhostsDataBck;
-	std::string newGhostsDataBck;
 	int numOpenBraces = 0;
 	int numOpenBrackets = 0;
 
@@ -43,9 +42,16 @@ private:
 	std::vector<std::string> newCars;
 	std::vector<std::string> newTimes;
 
-	// For editing
-	std::vector<bool> isReplacingPlayerGhost;
+	// Backup data (original ghosts file)
+	std::vector<std::string> bckItems;
+	std::vector<std::string> bckMaps;
+	std::vector<std::string> bckClasses;
+	std::vector<std::string> bckCars;
+	std::vector<std::string> bckTimes;
 
+	// Search
+	std::vector<bool> isNew; // Green
+	std::vector<bool> isReplaced; // Red
 
 	void connectActions();
 	void loadTables(std::string g0, std::string g1);
@@ -54,10 +60,11 @@ private:
 
 private slots:
 	bool openGhosts();
-	void exitGm();
-	void transferLeft();
-	void removeGhosts();
 	void saveGhosts(QString path);
 	void saveGhostsAs();
+	void exitGm();
 	void about();
+	void transferLeft();
+	void transferRight();
+	void search(QLineEdit* line, QTableWidget* table);
 };

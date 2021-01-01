@@ -12,11 +12,10 @@
 #include <QTableWidget>
 
 // ***** Slots *****
-// Open ghost files
+// Open both ghost files
 bool AoRGhostManager::openGhosts()
 {
 	std::ifstream playerGhosts, newGhosts;
-	QString newGhostsPath;
 
 	ghostsPath = QFileDialog::getOpenFileName(this, tr("Select your Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
 	newGhostsPath = QFileDialog::getOpenFileName(this, tr("Select new Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
@@ -38,13 +37,50 @@ bool AoRGhostManager::openGhosts()
 	return false;
 }
 
+// Save ghosts to file
+void AoRGhostManager::saveGhosts(QString path)
+{
+	// Save backup ghosts file
+	std::ofstream backupFile;
+	QString backupPath = defaultGhostsPath + "/Ghosts.original.txt";
+	backupFile.open(QString(backupPath).toStdString(), std::ios::out);
+	backupFile << playerGhostsDataBck;
+	backupFile.close();
+
+	// Overwrite original ghosts file with altered data
+	std::ofstream ghostsFile;
+	ghostsFile.open(QString(path).toStdString(), std::ios::out);
+	ghostsFile << "{\"Items\":[";
+	for (int i = 0; i < items.size(); ++i)
+	{
+		ghostsFile << items.at(i) << '}';
+		if (i != items.size() - 1)
+			ghostsFile << ',';
+	}
+	ghostsFile << "]}";
+	ghostsFile.close();
+}
+
+// Save ghosts to a different location than previously specified
+void AoRGhostManager::saveGhostsAs()
+{
+	QString customGhostsPath = QFileDialog::getSaveFileName(this, tr("Save File"), ghostsPath, "");
+	saveGhosts(customGhostsPath);
+}
+
 // Exit program
 void AoRGhostManager::exitGm()
 {
 	QApplication::quit();
 }
 
-// Transfer item from right to left
+// Bring up the about window
+void AoRGhostManager::about()
+{
+	QMessageBox::about(this, "About", "<p align='center'>Art of Rally Ghost Manager<br>by burninrubber0");
+}
+
+// Add items to the player ghosts vector/table
 void AoRGhostManager::transferLeft()
 {
 	// If a ghost is selected in the right table
@@ -57,7 +93,7 @@ void AoRGhostManager::transferLeft()
 			bool hasReplaced = false;
 
 			// Move both the vector items and table items to the left table
-			for (int i = 0; i < items.size() - 1; ++i)
+			for (int i = 0; i < items.size(); ++i)
 			{
 				QTableWidgetItem* itmMap = new QTableWidgetItem();
 				QTableWidgetItem* itmClass = new QTableWidgetItem();
@@ -92,10 +128,13 @@ void AoRGhostManager::transferLeft()
 					items.push_back(newItems.at(index.row()));
 					hasPushed = true;
 					ui.ghostsLeft->setRowCount(items.size());
-					itmMap->setBackground(Qt::green);
-					itmClass->setBackground(Qt::green);
-					itmCar->setBackground(Qt::green);
-					itmTime->setBackground(Qt::green);
+					if (ui.ghostsRight->item(index.row(), 0)->background() != Qt::lightGray)
+					{
+						itmMap->setBackground(Qt::green);
+						itmClass->setBackground(Qt::green);
+						itmCar->setBackground(Qt::green);
+						itmTime->setBackground(Qt::green);
+					}
 					ui.ghostsLeft->setItem(items.size() - 1, 0, itmMap);
 					ui.ghostsLeft->setItem(items.size() - 1, 1, itmClass);
 					ui.ghostsLeft->setItem(items.size() - 1, 2, itmCar);
@@ -103,19 +142,92 @@ void AoRGhostManager::transferLeft()
 				}
 			}
 		}
+
+		// Remove transferred rows from new vector and new table
+		for (int i = newItems.size() - 1; i >= 0; --i)
+		{
+			if (ui.ghostsRight->item(i, 0)->isSelected())
+			{
+				newItems.erase(newItems.begin() + i);
+				ui.ghostsRight->removeRow(i);
+			}
+		}
 	}
 }
 
-// This will be deleted soon
-void AoRGhostManager::removeGhosts()
+// Remove items from the player ghosts vector/table
+void AoRGhostManager::transferRight()
 {
+	// If a ghost is selected in the left table
 	if (ui.ghostsLeft->selectionModel()->hasSelection())
 	{
-		bool indexNeedsFixing = false;
-
-		for (int i = items.size() - 1; i > 0; --i)
+		// Then for each selected row
+		foreach(const QModelIndex index, ui.ghostsLeft->selectionModel()->selectedRows())
 		{
-			if (ui.ghostsLeft->item(i, 0)->isSelected())
+			bool hasBeenTransferred = false;
+
+			// Move both the vector items and table items to the right table
+			for (int i = 0; i < items.size(); ++i)
+			{
+				QTableWidgetItem* itmMap = new QTableWidgetItem();
+				QTableWidgetItem* itmClass = new QTableWidgetItem();
+				QTableWidgetItem* itmCar = new QTableWidgetItem();
+				QTableWidgetItem* itmTime = new QTableWidgetItem();
+				itmMap->setText(ui.ghostsLeft->item(index.row(), 0)->data(Qt::DisplayRole).toString());
+				itmClass->setText(ui.ghostsLeft->item(index.row(), 1)->data(Qt::DisplayRole).toString());
+				itmCar->setText(ui.ghostsLeft->item(index.row(), 2)->data(Qt::DisplayRole).toString());
+				itmTime->setText(ui.ghostsLeft->item(index.row(), 3)->data(Qt::DisplayRole).toString());
+
+				// If ghost was replacing another, revert to the original
+				if (ui.ghostsLeft->item(index.row(), 0)->background() == Qt::red
+					&& hasBeenTransferred == false)
+				{
+					// Set new table entry
+					newItems.push_back(items.at(index.row()));
+					ui.ghostsRight->setRowCount(newItems.size());
+					ui.ghostsRight->setItem(newItems.size() - 1, 0, itmMap);
+					ui.ghostsRight->setItem(newItems.size() - 1, 1, itmClass);
+					ui.ghostsRight->setItem(newItems.size() - 1, 2, itmCar);
+					ui.ghostsRight->setItem(newItems.size() - 1, 3, itmTime);
+					hasBeenTransferred = true;
+
+					// Revert player table entry
+					// This will break when player items get deleted! Remove the delete button altogether and prevent the transfer of player ghosts?
+					ui.ghostsLeft->item(index.row(), 0)->setBackground(Qt::white);
+					ui.ghostsLeft->item(index.row(), 1)->setBackground(Qt::white);
+					ui.ghostsLeft->item(index.row(), 2)->setBackground(Qt::white);
+					ui.ghostsLeft->item(index.row(), 3)->setBackground(Qt::white);
+					ui.ghostsLeft->item(index.row(), 0)->setText(QString::fromStdString(bckMaps.at(index.row())));
+					ui.ghostsLeft->item(index.row(), 1)->setText(QString::fromStdString(bckClasses.at(index.row())));
+					ui.ghostsLeft->item(index.row(), 2)->setText(QString::fromStdString(bckCars.at(index.row())));
+					ui.ghostsLeft->item(index.row(), 3)->setText(QString::fromStdString(bckTimes.at(index.row())));
+				}
+				// If it wasn't replacing, move back normally
+				else if (ui.ghostsLeft->item(index.row(), 0)->background() == Qt::green
+					&& hasBeenTransferred == false)
+				{
+					// Set new table entry
+					newItems.push_back(items.at(index.row()));
+					ui.ghostsRight->setRowCount(newItems.size());
+					ui.ghostsRight->setItem(newItems.size() - 1, 0, itmMap);
+					ui.ghostsRight->setItem(newItems.size() - 1, 1, itmClass);
+					ui.ghostsRight->setItem(newItems.size() - 1, 2, itmCar);
+					ui.ghostsRight->setItem(newItems.size() - 1, 3, itmTime);
+					hasBeenTransferred = true;
+				}
+				// If it was originally a player ghost, TODO: make it light grey or leave disabled?
+				else
+				{
+					// TODO
+				}
+			}
+		}
+
+		// Remove previously transferred new rows from player vector/table
+		for (int i = items.size() - 1; i >= 0; --i)
+		{
+			if (ui.ghostsLeft->item(i, 0)->isSelected()
+				&& ui.ghostsLeft->item(i, 0)->background() == Qt::green)
 			{
 				items.erase(items.begin() + i);
 				ui.ghostsLeft->removeRow(i);
@@ -124,41 +236,125 @@ void AoRGhostManager::removeGhosts()
 	}
 }
 
-// Save ghosts to file
-void AoRGhostManager::saveGhosts(QString path)
+void AoRGhostManager::search(QLineEdit* line, QTableWidget* table)
 {
-	// Save backup ghosts file
-	std::ofstream backupFile;
-	QString backupPath = defaultGhostsPath + "/Ghosts.original.txt";
-	backupFile.open(QString(backupPath).toStdString(), std::ios::out);
-	backupFile << playerGhostsDataBck;
-	backupFile.close();
+	isNew.resize(table->rowCount(), false);
+	isReplaced.resize(table->rowCount(), false);
 
-	// Overwrite original ghosts file with altered data
-	std::ofstream ghostsFile;
-	ghostsFile.open(QString(path).toStdString(), std::ios::out);
-	ghostsFile << "{\"Items\":[";
-	for (int i = 0; i < items.size(); ++i)
+	// If not blank
+	if (line->text().length() != 0)
 	{
-		ghostsFile << items.at(i) << '}';
-		if (i != items.size() - 1)
-			ghostsFile << ',';
+		// Then for every row in the table
+		for (int i = 0; i < table->rowCount(); ++i)
+		{
+			if (line == ui.lnPlayerGhostSearch)
+			{
+				if (table->item(i, 0)->background() == Qt::green)
+					isNew.at(i) = true;
+				else if (table->item(i, 0)->background() == Qt::red)
+					isReplaced.at(i) = true;
+				else if (table->item(i, 0)->background() == Qt::white)
+				{
+					isNew.at(i) = false;
+					isReplaced.at(i) = false;
+				}
+			}
+
+			// Check for a match
+			if (table->item(i, 0)->text().contains(line->text(), Qt::CaseInsensitive) == true
+				|| table->item(i, 1)->text().contains(line->text(), Qt::CaseInsensitive) == true
+				|| table->item(i, 2)->text().contains(line->text(), Qt::CaseInsensitive) == true)
+			{
+				// Set background to yellow 
+				table->item(i, 0)->setBackground(Qt::yellow);
+				table->item(i, 1)->setBackground(Qt::yellow);
+				table->item(i, 2)->setBackground(Qt::yellow);
+				table->item(i, 3)->setBackground(Qt::yellow);
+			}
+			// If previously highlighted item no longer matches
+			else if ((table->item(i, 0)->text().contains(line->text(), Qt::CaseInsensitive) == false
+				|| table->item(i, 1)->text().contains(line->text(), Qt::CaseInsensitive) == false
+				|| table->item(i, 2)->text().contains(line->text(), Qt::CaseInsensitive) == false)
+				&& table->item(i, 0)->background() == Qt::yellow)
+			{
+				// Revert to original color
+				if (line == ui.lnPlayerGhostSearch)
+				{
+					if (isNew.at(i) == false && isReplaced.at(i) == false)
+					{
+						table->item(i, 0)->setBackground(Qt::white);
+						table->item(i, 1)->setBackground(Qt::white);
+						table->item(i, 2)->setBackground(Qt::white);
+						table->item(i, 3)->setBackground(Qt::white);
+					}
+					else if (isNew.at(i) == true)
+					{
+						table->item(i, 0)->setBackground(Qt::green);
+						table->item(i, 1)->setBackground(Qt::green);
+						table->item(i, 2)->setBackground(Qt::green);
+						table->item(i, 3)->setBackground(Qt::green);
+					}
+					else if (isReplaced.at(i) == true)
+					{
+						table->item(i, 0)->setBackground(Qt::red);
+						table->item(i, 1)->setBackground(Qt::red);
+						table->item(i, 2)->setBackground(Qt::red);
+						table->item(i, 3)->setBackground(Qt::red);
+					}
+				}
+				else
+				{
+					table->item(i, 0)->setBackground(Qt::white);
+					table->item(i, 1)->setBackground(Qt::white);
+					table->item(i, 2)->setBackground(Qt::white);
+					table->item(i, 3)->setBackground(Qt::white);
+				}
+			}
+		}
 	}
-	ghostsFile << "]}";
-	ghostsFile.close();
-}
-
-// Save ghosts to a different location than previously specified
-void AoRGhostManager::saveGhostsAs()
-{
-	QString customGhostsPath = QFileDialog::getSaveFileName(this, tr("Save File"), ghostsPath, "");
-	saveGhosts(customGhostsPath);
-}
-
-// Bring up the about window
-void AoRGhostManager::about()
-{
-	QMessageBox::about(this, "About", "<p align='center'>Art of Rally Ghost Manager<br>by burninrubber0");
+	// If line becomes empty again
+	else if (line->text().length() == 0)
+	{
+		for (int i = 0; i < table->rowCount(); ++i)
+		{
+			// Revert all items to their original color
+			if (line == ui.lnPlayerGhostSearch)
+			{
+				if (table->item(i, 0)->background() == Qt::yellow
+					&& isNew.at(i) == false && isReplaced.at(i) == false)
+				{
+					table->item(i, 0)->setBackground(Qt::white);
+					table->item(i, 1)->setBackground(Qt::white);
+					table->item(i, 2)->setBackground(Qt::white);
+					table->item(i, 3)->setBackground(Qt::white);
+				}
+				else if (isNew.at(i) == true)
+				{
+					table->item(i, 0)->setBackground(Qt::green);
+					table->item(i, 1)->setBackground(Qt::green);
+					table->item(i, 2)->setBackground(Qt::green);
+					table->item(i, 3)->setBackground(Qt::green);
+				}
+				else if (isReplaced.at(i) == true)
+				{
+					table->item(i, 0)->setBackground(Qt::red);
+					table->item(i, 1)->setBackground(Qt::red);
+					table->item(i, 2)->setBackground(Qt::red);
+					table->item(i, 3)->setBackground(Qt::red);
+				}
+			}
+			else
+			{
+				if (table->item(i, 0)->background() == Qt::yellow)
+				{
+					table->item(i, 0)->setBackground(Qt::white);
+					table->item(i, 1)->setBackground(Qt::white);
+					table->item(i, 2)->setBackground(Qt::white);
+					table->item(i, 3)->setBackground(Qt::white);
+				}
+			}
+		}
+	}
 }
 
 // ***** UI *****
@@ -169,9 +365,11 @@ void AoRGhostManager::connectActions()
 	connect(ui.actionSave, &QAction::triggered, this, [this] { AoRGhostManager::saveGhosts(ghostsPath); });
 	connect(ui.actionSaveAs, &QAction::triggered, this, &AoRGhostManager::saveGhostsAs);
 	connect(ui.actionExit, &QAction::triggered, this, &AoRGhostManager::exitGm);
-	connect(ui.btnTransferLeft, &QPushButton::clicked, this, &AoRGhostManager::transferLeft);
-	connect(ui.btnRemoveGhosts, &QPushButton::clicked, this, &AoRGhostManager::removeGhosts);
 	connect(ui.actionAbout, &QAction::triggered, this, &AoRGhostManager::about);
+	connect(ui.btnTransferLeft, &QPushButton::clicked, this, &AoRGhostManager::transferLeft);
+	connect(ui.btnTransferRight, &QPushButton::clicked, this, &AoRGhostManager::transferRight);
+	connect(ui.lnPlayerGhostSearch, &QLineEdit::textEdited, this, [this] { AoRGhostManager::search(ui.lnPlayerGhostSearch, ui.ghostsLeft); });
+	connect(ui.lnNewGhostSearch, &QLineEdit::textEdited, this, [this] { AoRGhostManager::search(ui.lnNewGhostSearch, ui.ghostsRight); });
 }
 
 // Load ghost data into tables
@@ -179,9 +377,8 @@ void AoRGhostManager::loadTables(std::string g0, std::string g1)
 {
 	// Back up original data before anything else
 	playerGhostsDataBck = playerGhostsData;
-	newGhostsDataBck = newGhostsData;
 
-	// If no error was encountered
+	// If no error was encountered, parse ghost data
 	if (parseGhostData(g0, false) == false && parseGhostData(g1, true) == false)
 	{
 		setUpTables();
@@ -220,9 +417,17 @@ void AoRGhostManager::loadTables(std::string g0, std::string g1)
 			ui.ghostsRight->setItem(i, 3, itm3);
 		}
 
-		// Enable save actions after the loops have completed
+		// Enable actions after the loops have completed
 		ui.actionSave->setEnabled(true);
 		ui.actionSaveAs->setEnabled(true);
+		ui.lnPlayerGhostSearch->setEnabled(true);
+		ui.lnNewGhostSearch->setEnabled(true);
+		ui.lnPlayerGhostSearch->setPlaceholderText("Search...");
+		ui.lnNewGhostSearch->setPlaceholderText("Search...");
+		ui.cboPlayerSearch->setEnabled(true);
+		ui.cboNewSearch->setEnabled(true);
+		ui.cboPlayerSearch->setCurrentIndex(0);
+		ui.cboNewSearch->setCurrentIndex(0);
 	}
 }
 
@@ -242,7 +447,7 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 		{
 			if (start != "{\"Items\":[{")
 			{
-				QMessageBox::critical(this, "Error parsing ghosts file", "Invalid ghosts data");
+				QMessageBox::critical(this, "Error", "Invalid ghosts file");
 				return true;
 			}
 		}
@@ -280,6 +485,10 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 				newItems.push_back(tmpItem);
 		}
 	}
+
+	// Store original items
+	if (isNew == false)
+		bckItems = items;
 
 	// Check if all brackets and braces are closed at end
 	if (numOpenBraces != 0 || numOpenBrackets != 0)
@@ -373,6 +582,12 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 				}
 			}
 		}
+
+		// Store original data
+		bckMaps = maps;
+		bckClasses = classes;
+		bckCars = cars;
+		bckTimes = times;
 	}
 	else if (isNew == true)
 	{
