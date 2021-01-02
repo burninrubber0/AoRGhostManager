@@ -271,7 +271,14 @@
     </property>
     <addaction name="actionAbout"/>
    </widget>
+   <widget class="QMenu" name="menuRemoveGhosts">
+    <property name="title">
+     <string>Remove Ghosts</string>
+    </property>
+    <addaction name="actionGhostRemover"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuRemoveGhosts"/>
    <addaction name="menuHelp"/>
   </widget>
   <action name="actionExit">
@@ -309,6 +316,11 @@
   <action name="actionAbout">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="actionGhostRemover">
+   <property name="text">
+    <string>Ghost Remover</string>
    </property>
   </action>
  </widget>

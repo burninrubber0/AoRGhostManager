@@ -24,7 +24,8 @@ void AoRGhostManager::saveGhosts(QString path)
 {
 	// Save backup ghosts file
 	std::ofstream backupFile;
-	QString backupPath = defaultGhostsPath + "/Ghosts.original.txt";
+	QFileInfo backupInfo(ghostsPath);
+	QString backupPath = backupInfo.dir().path() + "/Ghosts.original.txt";
 	backupFile.open(QString(backupPath).toStdString(), std::ios::out);
 	backupFile << playerGhostsDataBck;
 	backupFile.close();
@@ -402,6 +403,14 @@ void AoRGhostManager::openNewGhosts()
 	}
 }
 
+void AoRGhostManager::launchRemover()
+{
+	AoRGhostRemover r = new AoRGhostRemover;
+	r.openGhostsFile();
+	r.loadRmTable();
+	r.exec();
+}
+
 // ***** UI *****
 // Connect signals to slots
 void AoRGhostManager::connectActions()
@@ -419,6 +428,7 @@ void AoRGhostManager::connectActions()
 		[this] { AoRGhostManager::search(ui.lnNewGhostSearch, ui.ghostsRight); });
 	connect(ui.btnBrowsePlayerFile, &QToolButton::clicked, this, &AoRGhostManager::openPlayerGhosts);
 	connect(ui.btnBrowseNewFile, &QToolButton::clicked, this, &AoRGhostManager::openNewGhosts);
+	connect(ui.actionGhostRemover, &QAction::triggered, this, &AoRGhostManager::launchRemover);
 }
 
 // Load ghost data into tables
@@ -563,7 +573,7 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 		// Save the current item when it ends
 		if (numOpenBraces == 1 && numOpenBrackets == 1 && ghosts[i] == ',')
 		{
-			if (isNew == false)
+			if (!isNew)
 				items.push_back(tmpItem);
 			else
 				newItems.push_back(tmpItem);
@@ -573,7 +583,7 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 		// Save the last item
 		if (i != 0 && numOpenBraces == 0 && numOpenBrackets == 0)
 		{
-			if (isNew == false)
+			if (!isNew)
 				items.push_back(tmpItem);
 			else
 				newItems.push_back(tmpItem);
@@ -625,7 +635,7 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 						if (tmpString == "_map" || tmpString == "_class" || tmpString == "_car" || tmpString == "_finishTime")
 							tmpFieldName = tmpString;
 						// Save field values to vectors
-						else if (recordingValue == true)
+						else if (recordingValue)
 						{
 							if (tmpFieldName == "_map")
 								maps.push_back(tmpString);
@@ -795,5 +805,12 @@ AoRGhostManager::AoRGhostManager(QWidget *parent)
 	: QMainWindow(parent)
 {
 	ui.setupUi(this);
+	connectActions();
+}
+
+AoRGhostRemover::AoRGhostRemover(QWidget* parent)
+	: QDialog(parent)
+{
+	rm.setupUi(this);
 	connectActions();
 }

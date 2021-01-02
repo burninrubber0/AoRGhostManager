@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ui_AoRGhostManager.h"
+#include "ui_AoRGhostRemover.h"
 
 #include <string>
 #include <vector>
@@ -88,4 +89,39 @@ private slots:
 	void search(QLineEdit* line, QTableWidget* table);
 	void openPlayerGhosts();
 	void openNewGhosts();
+	void launchRemover();
+};
+
+class AoRGhostRemover : public QDialog
+{
+	Q_OBJECT
+
+public:
+	AoRGhostRemover(QWidget* parent = Q_NULLPTR);
+
+	void openGhostsFile();
+	void loadRmTable();
+
+private:
+	Ui::GhostRemover rm;
+
+	QString defaultGhostsPath = QStandardPaths::standardLocations(QStandardPaths::HomeLocation).at(0)
+		+ "/AppData/LocalLow/Funselektor Labs/art of rally/cloud";
+	QString ghostsPath;
+	std::string ghostsData;
+	std::string backupData;
+	std::vector<std::string> items;
+	std::vector<std::string> maps;
+	std::vector<std::string> classes;
+	std::vector<std::string> cars;
+	std::vector<std::string> times;
+
+	bool parseGhostData();
+	void connectActions();
+
+private slots:
+	void saveGhosts();
+	void exitGr();
+	void removeGhost();
+	void addGhost();
 };

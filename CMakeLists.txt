@@ -9,6 +9,7 @@ set(SOURCES
 	${SOURCES}
 	main.cpp
 	Ui/AoRGhostManager.cpp
+	Ui/AoRGhostRemover.cpp
 	)
 
 set(HEADERS
@@ -24,6 +25,7 @@ set(RESOURCES
 set(UIS
 	${UIS}
 	Ui/AoRGhostManager.ui
+	Ui/AoRGhostRemover.ui
 	)
 
 # Use if Qt6_DIR isn't set in PATH
