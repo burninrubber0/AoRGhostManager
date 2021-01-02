@@ -2,9 +2,11 @@
 A simple solution for sharing ghosts for Art of Rally.
 
 ## Usage
-Go to File > Open, choose your ghosts file, then choose another player's ghosts file. It may take a few seconds to load. There is very little error checking, so make sure to choose valid ghosts files.
+Choose two ghosts files, either via the lines at the bottom of the window or File > Open.
 
-The left table can be altered by the + and - buttons in the center. - removes selected entries from the left table. + adds selected entries from the right table to the left table.
+The player's ghosts can be added to by selecting new ghosts and using the << button. Changes can be reverted via the >> button.
+
+Due to technical limitations, the current version of Ghost Manager cannot remove ghosts from the player file. This feature will be added in the future.
 
 ## Building
 Requires CMake and Qt6. Qt should be in PATH.
