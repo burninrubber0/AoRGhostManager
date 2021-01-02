@@ -56,7 +56,7 @@ void AoRGhostManager::exitGm()
 	if (tableLoaded.at(0))
 	{
 		if (QMessageBox::warning(this, "Warning", "Are you sure? Any unsaved changes will be lost.",
-			QMessageBox::StandardButton::Yes, QMessageBox::StandardButton::No) == QMessageBox::StandardButton::Yes)
+			QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes)
 		{
 			QApplication::quit();
 		}
@@ -122,13 +122,10 @@ void AoRGhostManager::transferLeft()
 					items.push_back(newItems.at(index.row()));
 					hasPushed = true;
 					ui.ghostsLeft->setRowCount(items.size());
-					if (ui.ghostsRight->item(index.row(), 0)->background() != Qt::lightGray)
-					{
-						itmMap->setBackground(Qt::green);
-						itmClass->setBackground(Qt::green);
-						itmCar->setBackground(Qt::green);
-						itmTime->setBackground(Qt::green);
-					}
+					itmMap->setBackground(Qt::green);
+					itmClass->setBackground(Qt::green);
+					itmCar->setBackground(Qt::green);
+					itmTime->setBackground(Qt::green);
 					ui.ghostsLeft->setItem(items.size() - 1, 0, itmMap);
 					ui.ghostsLeft->setItem(items.size() - 1, 1, itmClass);
 					ui.ghostsLeft->setItem(items.size() - 1, 2, itmCar);
@@ -186,7 +183,6 @@ void AoRGhostManager::transferRight()
 					hasBeenTransferred = true;
 
 					// Revert player table entry
-					// This will break when player items get deleted! Remove the delete button altogether and prevent the transfer of player ghosts?
 					ui.ghostsLeft->item(index.row(), 0)->setBackground(Qt::white);
 					ui.ghostsLeft->item(index.row(), 1)->setBackground(Qt::white);
 					ui.ghostsLeft->item(index.row(), 2)->setBackground(Qt::white);
@@ -209,11 +205,6 @@ void AoRGhostManager::transferRight()
 					ui.ghostsRight->setItem(newItems.size() - 1, 3, itmTime);
 					hasBeenTransferred = true;
 				}
-				// If it was originally a player ghost, TODO: make it light grey or leave disabled?
-				else
-				{
-					// TODO
-				}
 			}
 		}
 
@@ -230,10 +221,8 @@ void AoRGhostManager::transferRight()
 	}
 }
 
-void AoRGhostManager::search(QLineEdit* line, QComboBox* comboBox, QTableWidget* table)
+void AoRGhostManager::search(QLineEdit* line, QTableWidget* table)
 {
-	// TODO: Fix filters
-
 	isNew.resize(table->rowCount(), false);
 	isReplaced.resize(table->rowCount(), false);
 
@@ -257,41 +246,16 @@ void AoRGhostManager::search(QLineEdit* line, QComboBox* comboBox, QTableWidget*
 			}
 
 			// Check for a match
-			// Search maps
-			if (table->item(i, 0)->text().contains(line->text(), Qt::CaseInsensitive))
+			if (table->item(i, 0)->text().contains(line->text(), Qt::CaseInsensitive)
+				|| table->item(i, 1)->text().contains(line->text(), Qt::CaseInsensitive)
+				|| table->item(i, 2)->text().contains(line->text(), Qt::CaseInsensitive)
+				|| table->item(i, 3)->text().contains(line->text(), Qt::CaseInsensitive))
 			{
-				if (comboBox->currentIndex() == 0 || comboBox->currentIndex() == 1)
-				{
-					// Set background to yellow 
-					table->item(i, 0)->setBackground(Qt::yellow);
-					table->item(i, 1)->setBackground(Qt::yellow);
-					table->item(i, 2)->setBackground(Qt::yellow);
-					table->item(i, 3)->setBackground(Qt::yellow);
-				}
-			}
-			// Search classes
-			else if (table->item(i, 1)->text().contains(line->text(), Qt::CaseInsensitive))
-			{
-				if (comboBox->currentIndex() == 0 || comboBox->currentIndex() == 2)
-				{
-					// Set background to yellow 
-					table->item(i, 0)->setBackground(Qt::yellow);
-					table->item(i, 1)->setBackground(Qt::yellow);
-					table->item(i, 2)->setBackground(Qt::yellow);
-					table->item(i, 3)->setBackground(Qt::yellow);
-				}
-			}
-			// Search cars
-			else if (table->item(i, 2)->text().contains(line->text(), Qt::CaseInsensitive))
-			{
-				if (comboBox->currentIndex() == 0 || comboBox->currentIndex() == 3)
-				{
-					// Set background to yellow 
-					table->item(i, 0)->setBackground(Qt::yellow);
-					table->item(i, 1)->setBackground(Qt::yellow);
-					table->item(i, 2)->setBackground(Qt::yellow);
-					table->item(i, 3)->setBackground(Qt::yellow);
-				}
+				// Set background to yellow 
+				table->item(i, 0)->setBackground(Qt::yellow);
+				table->item(i, 1)->setBackground(Qt::yellow);
+				table->item(i, 2)->setBackground(Qt::yellow);
+				table->item(i, 3)->setBackground(Qt::yellow);
 			}
 			// If previously highlighted item no longer matches
 			else if (!table->item(i, 0)->text().contains(line->text(), Qt::CaseInsensitive)
@@ -391,7 +355,7 @@ void AoRGhostManager::openPlayerGhosts()
 	else
 	{
 		if (QMessageBox::warning(this, "Warning", "Changing the current player file will cause any unsaved changes to be lost. Continue?",
-			QMessageBox::StandardButton::Yes, QMessageBox::StandardButton::No) == QMessageBox::StandardButton::Yes)
+			QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes)
 		{
 			items.clear();
 			maps.clear();
@@ -450,13 +414,9 @@ void AoRGhostManager::connectActions()
 	connect(ui.btnTransferLeft, &QPushButton::clicked, this, &AoRGhostManager::transferLeft);
 	connect(ui.btnTransferRight, &QPushButton::clicked, this, &AoRGhostManager::transferRight);
 	connect(ui.lnPlayerGhostSearch, &QLineEdit::textEdited, this,
-		[this] { AoRGhostManager::search(ui.lnPlayerGhostSearch, ui.cboPlayerSearch, ui.ghostsLeft); });
+		[this] { AoRGhostManager::search(ui.lnPlayerGhostSearch, ui.ghostsLeft); });
 	connect(ui.lnNewGhostSearch, &QLineEdit::textEdited, this,
-		[this] { AoRGhostManager::search(ui.lnNewGhostSearch, ui.cboNewSearch, ui.ghostsRight); });
-	//connect(ui.cboPlayerSearch, &QComboBox::currentIndexChanged, this,
-	//	[this] { AoRGhostManager::search(ui.lnPlayerGhostSearch, ui.cboPlayerSearch, ui.ghostsLeft); });
-	//connect(ui.cboNewSearch, &QComboBox::currentIndexChanged, this,
-	//	[this] { AoRGhostManager::search(ui.lnNewGhostSearch, ui.cboNewSearch, ui.ghostsRight); });
+		[this] { AoRGhostManager::search(ui.lnNewGhostSearch, ui.ghostsRight); });
 	connect(ui.btnBrowsePlayerFile, &QToolButton::clicked, this, &AoRGhostManager::openPlayerGhosts);
 	connect(ui.btnBrowseNewFile, &QToolButton::clicked, this, &AoRGhostManager::openNewGhosts);
 }
@@ -529,10 +489,6 @@ void AoRGhostManager::loadTable(bool loadNew)
 		ui.lnNewGhostSearch->setEnabled(true);
 		ui.lnPlayerGhostSearch->setPlaceholderText("Search...");
 		ui.lnNewGhostSearch->setPlaceholderText("Search...");
-		//ui.cboPlayerSearch->setEnabled(true);
-		//ui.cboNewSearch->setEnabled(true);
-		ui.cboPlayerSearch->setCurrentIndex(0);
-		ui.cboNewSearch->setCurrentIndex(0);
 	}
 }
 

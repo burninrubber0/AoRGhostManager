@@ -40,36 +40,6 @@
          </widget>
         </item>
         <item>
-         <widget class="QComboBox" name="cboPlayerSearch">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="currentIndex">
-           <number>-1</number>
-          </property>
-          <item>
-           <property name="text">
-            <string>All</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Map</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Class</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Car</string>
-           </property>
-          </item>
-         </widget>
-        </item>
-        <item>
          <spacer name="spcSearch1">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
@@ -109,36 +79,6 @@
           <property name="placeholderText">
            <string/>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QComboBox" name="cboNewSearch">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="currentIndex">
-           <number>-1</number>
-          </property>
-          <item>
-           <property name="text">
-            <string>All</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Map</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Class</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Car</string>
-           </property>
-          </item>
          </widget>
         </item>
         <item>

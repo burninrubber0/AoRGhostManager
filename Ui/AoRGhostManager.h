@@ -5,7 +5,9 @@
 #include <string>
 #include <vector>
 
+#include <QCloseEvent>
 #include <QMainWindow>
+#include <QMessageBox>
 #include <QStandardPaths>
 #include <QTableWidget>
 
@@ -60,6 +62,21 @@ private:
 	bool parseGhostData(std::string ghosts, bool isNew);
 	void setUpTable(bool setUpNew);
 
+	void closeEvent(QCloseEvent* event)
+	{
+		if (tableLoaded.at(0))
+		{
+			event->ignore();
+			if (QMessageBox::warning(this, "Warning", "Are you sure? Any unsaved changes will be lost.",
+				QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes)
+			{
+				event->accept();
+			}
+		}
+		else
+			event->accept();
+	}
+
 private slots:
 	void openGhosts();
 	void saveGhosts(QString path);
@@ -68,7 +85,7 @@ private slots:
 	void about();
 	void transferLeft();
 	void transferRight();
-	void search(QLineEdit* line, QComboBox* comboBox, QTableWidget* table);
+	void search(QLineEdit* line, QTableWidget* table);
 	void openPlayerGhosts();
 	void openNewGhosts();
 };
