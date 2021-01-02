@@ -13,28 +13,10 @@
 
 // ***** Slots *****
 // Open both ghost files
-bool AoRGhostManager::openGhosts()
+void AoRGhostManager::openGhosts()
 {
-	std::ifstream playerGhosts, newGhosts;
-
-	ghostsPath = QFileDialog::getOpenFileName(this, tr("Select your Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
-	newGhostsPath = QFileDialog::getOpenFileName(this, tr("Select new Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
-
-	playerGhosts.open(ghostsPath.QString::toStdString(), std::ios::in);
-	newGhosts.open(newGhostsPath.QString::toStdString(), std::ios::in);
-	if (playerGhosts.fail() || newGhosts.fail())
-	{
-		QMessageBox::critical(this, "Error", "Failed to open ghosts file");
-		return true;
-	}
-	std::getline(playerGhosts, playerGhostsData);
-	std::getline(newGhosts, newGhostsData);
-	playerGhosts.close();
-	newGhosts.close();
-
-	loadTables(playerGhostsData, newGhostsData);
-
-	return false;
+	openPlayerGhosts();
+	openNewGhosts();
 }
 
 // Save ghosts to file
@@ -71,7 +53,18 @@ void AoRGhostManager::saveGhostsAs()
 // Exit program
 void AoRGhostManager::exitGm()
 {
-	QApplication::quit();
+	if (tableLoaded.at(0))
+	{
+		if (QMessageBox::warning(this, "Warning", "Are you sure? Any unsaved changes will be lost.",
+			QMessageBox::StandardButton::Yes, QMessageBox::StandardButton::No) == QMessageBox::StandardButton::Yes)
+		{
+			QApplication::quit();
+		}
+	}
+	else
+	{
+		QApplication::quit();
+	}
 }
 
 // Bring up the about window
@@ -107,7 +100,7 @@ void AoRGhostManager::transferLeft()
 				// If ghost map/class matches existing, replace existing (red)
 				if (itmMap->text() == ui.ghostsLeft->item(i, 0)->text()
 					&& itmClass->text() == ui.ghostsLeft->item(i, 1)->text()
-					&& hasPushed == false && hasReplaced == false)
+					&& !hasPushed && !hasReplaced)
 				{
 					items.at(i) = newItems.at(index.row());
 					hasReplaced = true;
@@ -119,11 +112,12 @@ void AoRGhostManager::transferLeft()
 					ui.ghostsLeft->setItem(i, 1, itmClass);
 					ui.ghostsLeft->setItem(i, 2, itmCar);
 					ui.ghostsLeft->setItem(i, 3, itmTime);
+					break;
 				}
 				// Else add new entry (green)
-				else if (itmMap->text() != ui.ghostsLeft->item(i, 0)->text()
-					&& itmClass->text() != ui.ghostsLeft->item(i, 1)->text()
-					&& hasPushed == false && hasReplaced == false)
+				else if ((itmMap->text() != ui.ghostsLeft->item(i, 0)->text()
+					|| itmClass->text() != ui.ghostsLeft->item(i, 1)->text())
+					&& !hasPushed && !hasReplaced && i == items.size() - 1)
 				{
 					items.push_back(newItems.at(index.row()));
 					hasPushed = true;
@@ -180,7 +174,7 @@ void AoRGhostManager::transferRight()
 
 				// If ghost was replacing another, revert to the original
 				if (ui.ghostsLeft->item(index.row(), 0)->background() == Qt::red
-					&& hasBeenTransferred == false)
+					&& !hasBeenTransferred)
 				{
 					// Set new table entry
 					newItems.push_back(items.at(index.row()));
@@ -204,7 +198,7 @@ void AoRGhostManager::transferRight()
 				}
 				// If it wasn't replacing, move back normally
 				else if (ui.ghostsLeft->item(index.row(), 0)->background() == Qt::green
-					&& hasBeenTransferred == false)
+					&& !hasBeenTransferred)
 				{
 					// Set new table entry
 					newItems.push_back(items.at(index.row()));
@@ -236,8 +230,10 @@ void AoRGhostManager::transferRight()
 	}
 }
 
-void AoRGhostManager::search(QLineEdit* line, QTableWidget* table)
+void AoRGhostManager::search(QLineEdit* line, QComboBox* comboBox, QTableWidget* table)
 {
+	// TODO: Fix filters
+
 	isNew.resize(table->rowCount(), false);
 	isReplaced.resize(table->rowCount(), false);
 
@@ -261,40 +257,66 @@ void AoRGhostManager::search(QLineEdit* line, QTableWidget* table)
 			}
 
 			// Check for a match
-			if (table->item(i, 0)->text().contains(line->text(), Qt::CaseInsensitive) == true
-				|| table->item(i, 1)->text().contains(line->text(), Qt::CaseInsensitive) == true
-				|| table->item(i, 2)->text().contains(line->text(), Qt::CaseInsensitive) == true)
+			// Search maps
+			if (table->item(i, 0)->text().contains(line->text(), Qt::CaseInsensitive))
 			{
-				// Set background to yellow 
-				table->item(i, 0)->setBackground(Qt::yellow);
-				table->item(i, 1)->setBackground(Qt::yellow);
-				table->item(i, 2)->setBackground(Qt::yellow);
-				table->item(i, 3)->setBackground(Qt::yellow);
+				if (comboBox->currentIndex() == 0 || comboBox->currentIndex() == 1)
+				{
+					// Set background to yellow 
+					table->item(i, 0)->setBackground(Qt::yellow);
+					table->item(i, 1)->setBackground(Qt::yellow);
+					table->item(i, 2)->setBackground(Qt::yellow);
+					table->item(i, 3)->setBackground(Qt::yellow);
+				}
+			}
+			// Search classes
+			else if (table->item(i, 1)->text().contains(line->text(), Qt::CaseInsensitive))
+			{
+				if (comboBox->currentIndex() == 0 || comboBox->currentIndex() == 2)
+				{
+					// Set background to yellow 
+					table->item(i, 0)->setBackground(Qt::yellow);
+					table->item(i, 1)->setBackground(Qt::yellow);
+					table->item(i, 2)->setBackground(Qt::yellow);
+					table->item(i, 3)->setBackground(Qt::yellow);
+				}
+			}
+			// Search cars
+			else if (table->item(i, 2)->text().contains(line->text(), Qt::CaseInsensitive))
+			{
+				if (comboBox->currentIndex() == 0 || comboBox->currentIndex() == 3)
+				{
+					// Set background to yellow 
+					table->item(i, 0)->setBackground(Qt::yellow);
+					table->item(i, 1)->setBackground(Qt::yellow);
+					table->item(i, 2)->setBackground(Qt::yellow);
+					table->item(i, 3)->setBackground(Qt::yellow);
+				}
 			}
 			// If previously highlighted item no longer matches
-			else if ((table->item(i, 0)->text().contains(line->text(), Qt::CaseInsensitive) == false
-				|| table->item(i, 1)->text().contains(line->text(), Qt::CaseInsensitive) == false
-				|| table->item(i, 2)->text().contains(line->text(), Qt::CaseInsensitive) == false)
+			else if (!table->item(i, 0)->text().contains(line->text(), Qt::CaseInsensitive)
+				&& !table->item(i, 1)->text().contains(line->text(), Qt::CaseInsensitive)
+				&& !table->item(i, 2)->text().contains(line->text(), Qt::CaseInsensitive)
 				&& table->item(i, 0)->background() == Qt::yellow)
 			{
 				// Revert to original color
 				if (line == ui.lnPlayerGhostSearch)
 				{
-					if (isNew.at(i) == false && isReplaced.at(i) == false)
+					if (!isNew.at(i) && !isReplaced.at(i))
 					{
 						table->item(i, 0)->setBackground(Qt::white);
 						table->item(i, 1)->setBackground(Qt::white);
 						table->item(i, 2)->setBackground(Qt::white);
 						table->item(i, 3)->setBackground(Qt::white);
 					}
-					else if (isNew.at(i) == true)
+					else if (isNew.at(i))
 					{
 						table->item(i, 0)->setBackground(Qt::green);
 						table->item(i, 1)->setBackground(Qt::green);
 						table->item(i, 2)->setBackground(Qt::green);
 						table->item(i, 3)->setBackground(Qt::green);
 					}
-					else if (isReplaced.at(i) == true)
+					else if (isReplaced.at(i))
 					{
 						table->item(i, 0)->setBackground(Qt::red);
 						table->item(i, 1)->setBackground(Qt::red);
@@ -321,21 +343,21 @@ void AoRGhostManager::search(QLineEdit* line, QTableWidget* table)
 			if (line == ui.lnPlayerGhostSearch)
 			{
 				if (table->item(i, 0)->background() == Qt::yellow
-					&& isNew.at(i) == false && isReplaced.at(i) == false)
+					&& !isNew.at(i) && !isReplaced.at(i))
 				{
 					table->item(i, 0)->setBackground(Qt::white);
 					table->item(i, 1)->setBackground(Qt::white);
 					table->item(i, 2)->setBackground(Qt::white);
 					table->item(i, 3)->setBackground(Qt::white);
 				}
-				else if (isNew.at(i) == true)
+				else if (isNew.at(i))
 				{
 					table->item(i, 0)->setBackground(Qt::green);
 					table->item(i, 1)->setBackground(Qt::green);
 					table->item(i, 2)->setBackground(Qt::green);
 					table->item(i, 3)->setBackground(Qt::green);
 				}
-				else if (isReplaced.at(i) == true)
+				else if (isReplaced.at(i))
 				{
 					table->item(i, 0)->setBackground(Qt::red);
 					table->item(i, 1)->setBackground(Qt::red);
@@ -357,6 +379,65 @@ void AoRGhostManager::search(QLineEdit* line, QTableWidget* table)
 	}
 }
 
+void AoRGhostManager::openPlayerGhosts()
+{
+	if (!tableLoaded.at(0))
+	{
+		ghostsPath = QFileDialog::getOpenFileName(this, tr("Select your Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
+		ui.lnPlayerGhostsFile->setText(ghostsPath);
+		if (!readGhosts(false))
+			loadTable(false);
+	}
+	else
+	{
+		if (QMessageBox::warning(this, "Warning", "Changing the current player file will cause any unsaved changes to be lost. Continue?",
+			QMessageBox::StandardButton::Yes, QMessageBox::StandardButton::No) == QMessageBox::StandardButton::Yes)
+		{
+			items.clear();
+			maps.clear();
+			classes.clear();
+			cars.clear();
+			times.clear();
+			bckItems.clear();
+			bckMaps.clear();
+			bckClasses.clear();
+			bckCars.clear();
+			bckTimes.clear();
+			isNew.clear();
+			isReplaced.clear();
+
+			ghostsPath = QFileDialog::getOpenFileName(this, tr("Select your Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
+			ui.lnPlayerGhostsFile->setText(ghostsPath);
+			if (!readGhosts(false))
+				loadTable(false);
+		}
+	}
+}
+
+void AoRGhostManager::openNewGhosts()
+{
+	if (!tableLoaded.at(1))
+	{
+		newGhostsPath = QFileDialog::getOpenFileName(this, tr("Select new Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
+		ui.lnNewGhostsFile->setText(newGhostsPath);
+		if (!readGhosts(true))
+			loadTable(true);
+	}
+	else
+	{
+		newItems.clear();
+		newMaps.clear();
+		newClasses.clear();
+		newCars.clear();
+		newTimes.clear();
+
+		newGhostsPath = QFileDialog::getOpenFileName(this, tr("Select new Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
+		ui.lnNewGhostsFile->setText(newGhostsPath);
+		if (!readGhosts(true))
+			loadTable(true);
+	}
+}
+
 // ***** UI *****
 // Connect signals to slots
 void AoRGhostManager::connectActions()
@@ -368,67 +449,124 @@ void AoRGhostManager::connectActions()
 	connect(ui.actionAbout, &QAction::triggered, this, &AoRGhostManager::about);
 	connect(ui.btnTransferLeft, &QPushButton::clicked, this, &AoRGhostManager::transferLeft);
 	connect(ui.btnTransferRight, &QPushButton::clicked, this, &AoRGhostManager::transferRight);
-	connect(ui.lnPlayerGhostSearch, &QLineEdit::textEdited, this, [this] { AoRGhostManager::search(ui.lnPlayerGhostSearch, ui.ghostsLeft); });
-	connect(ui.lnNewGhostSearch, &QLineEdit::textEdited, this, [this] { AoRGhostManager::search(ui.lnNewGhostSearch, ui.ghostsRight); });
+	connect(ui.lnPlayerGhostSearch, &QLineEdit::textEdited, this,
+		[this] { AoRGhostManager::search(ui.lnPlayerGhostSearch, ui.cboPlayerSearch, ui.ghostsLeft); });
+	connect(ui.lnNewGhostSearch, &QLineEdit::textEdited, this,
+		[this] { AoRGhostManager::search(ui.lnNewGhostSearch, ui.cboNewSearch, ui.ghostsRight); });
+	//connect(ui.cboPlayerSearch, &QComboBox::currentIndexChanged, this,
+	//	[this] { AoRGhostManager::search(ui.lnPlayerGhostSearch, ui.cboPlayerSearch, ui.ghostsLeft); });
+	//connect(ui.cboNewSearch, &QComboBox::currentIndexChanged, this,
+	//	[this] { AoRGhostManager::search(ui.lnNewGhostSearch, ui.cboNewSearch, ui.ghostsRight); });
+	connect(ui.btnBrowsePlayerFile, &QToolButton::clicked, this, &AoRGhostManager::openPlayerGhosts);
+	connect(ui.btnBrowseNewFile, &QToolButton::clicked, this, &AoRGhostManager::openNewGhosts);
 }
 
 // Load ghost data into tables
-void AoRGhostManager::loadTables(std::string g0, std::string g1)
+void AoRGhostManager::loadTable(bool loadNew)
 {
-	// Back up original data before anything else
-	playerGhostsDataBck = playerGhostsData;
-
-	// If no error was encountered, parse ghost data
-	if (parseGhostData(g0, false) == false && parseGhostData(g1, true) == false)
+	// If no error was encountered, load parsed ghost data
+	if (!loadNew)
 	{
-		setUpTables();
-
-		// Add data from vectors to player table
-		for (int i = 0; i < items.size(); ++i)
+		if (!parseGhostData(playerGhostsData, false))
 		{
-			QTableWidgetItem* itm0 = new QTableWidgetItem;
-			QTableWidgetItem* itm1 = new QTableWidgetItem;
-			QTableWidgetItem* itm2 = new QTableWidgetItem;
-			QTableWidgetItem* itm3 = new QTableWidgetItem;
-			itm0->setText(QString::fromStdString(maps.at(i)));
-			itm1->setText(QString::fromStdString(classes.at(i)));
-			itm2->setText(QString::fromStdString(cars.at(i)));
-			itm3->setText(QString::fromStdString(times.at(i)));
-			ui.ghostsLeft->setItem(i, 0, itm0);
-			ui.ghostsLeft->setItem(i, 1, itm1);
-			ui.ghostsLeft->setItem(i, 2, itm2);
-			ui.ghostsLeft->setItem(i, 3, itm3);
-		}
+			setUpTable(false);
 
-		// Add data from new vectors to new table
-		for (int i = 0; i < newItems.size(); ++i)
+			// Add data from vectors to player table
+			for (int i = 0; i < items.size(); ++i)
+			{
+				QTableWidgetItem* itm0 = new QTableWidgetItem;
+				QTableWidgetItem* itm1 = new QTableWidgetItem;
+				QTableWidgetItem* itm2 = new QTableWidgetItem;
+				QTableWidgetItem* itm3 = new QTableWidgetItem;
+				itm0->setText(QString::fromStdString(maps.at(i)));
+				itm1->setText(QString::fromStdString(classes.at(i)));
+				itm2->setText(QString::fromStdString(cars.at(i)));
+				itm3->setText(QString::fromStdString(times.at(i)));
+				ui.ghostsLeft->setItem(i, 0, itm0);
+				ui.ghostsLeft->setItem(i, 1, itm1);
+				ui.ghostsLeft->setItem(i, 2, itm2);
+				ui.ghostsLeft->setItem(i, 3, itm3);
+
+				tableLoaded.at(0) = true;
+			}
+		}
+	}
+	else
+	{
+		if (!parseGhostData(newGhostsData, true))
 		{
-			QTableWidgetItem* itm0 = new QTableWidgetItem;
-			QTableWidgetItem* itm1 = new QTableWidgetItem;
-			QTableWidgetItem* itm2 = new QTableWidgetItem;
-			QTableWidgetItem* itm3 = new QTableWidgetItem;
-			itm0->setText(QString::fromStdString(newMaps.at(i)));
-			itm1->setText(QString::fromStdString(newClasses.at(i)));
-			itm2->setText(QString::fromStdString(newCars.at(i)));
-			itm3->setText(QString::fromStdString(newTimes.at(i)));
-			ui.ghostsRight->setItem(i, 0, itm0);
-			ui.ghostsRight->setItem(i, 1, itm1);
-			ui.ghostsRight->setItem(i, 2, itm2);
-			ui.ghostsRight->setItem(i, 3, itm3);
-		}
+			setUpTable(true);
 
+			// Add data from new vectors to new table
+			for (int i = 0; i < newItems.size(); ++i)
+			{
+				QTableWidgetItem* itm0 = new QTableWidgetItem;
+				QTableWidgetItem* itm1 = new QTableWidgetItem;
+				QTableWidgetItem* itm2 = new QTableWidgetItem;
+				QTableWidgetItem* itm3 = new QTableWidgetItem;
+				itm0->setText(QString::fromStdString(newMaps.at(i)));
+				itm1->setText(QString::fromStdString(newClasses.at(i)));
+				itm2->setText(QString::fromStdString(newCars.at(i)));
+				itm3->setText(QString::fromStdString(newTimes.at(i)));
+				ui.ghostsRight->setItem(i, 0, itm0);
+				ui.ghostsRight->setItem(i, 1, itm1);
+				ui.ghostsRight->setItem(i, 2, itm2);
+				ui.ghostsRight->setItem(i, 3, itm3);
+
+				tableLoaded.at(1) = true;
+			}
+		}
+	}
+	// If both tables are loaded and have not previously been loaded
+	if (tableLoaded.at(0) && tableLoaded.at(1) && !ui.actionSave->isEnabled())
+	{
 		// Enable actions after the loops have completed
 		ui.actionSave->setEnabled(true);
 		ui.actionSaveAs->setEnabled(true);
+		ui.btnTransferLeft->setEnabled(true);
+		ui.btnTransferRight->setEnabled(true);
 		ui.lnPlayerGhostSearch->setEnabled(true);
 		ui.lnNewGhostSearch->setEnabled(true);
 		ui.lnPlayerGhostSearch->setPlaceholderText("Search...");
 		ui.lnNewGhostSearch->setPlaceholderText("Search...");
-		ui.cboPlayerSearch->setEnabled(true);
-		ui.cboNewSearch->setEnabled(true);
+		//ui.cboPlayerSearch->setEnabled(true);
+		//ui.cboNewSearch->setEnabled(true);
 		ui.cboPlayerSearch->setCurrentIndex(0);
 		ui.cboNewSearch->setCurrentIndex(0);
 	}
+}
+
+bool AoRGhostManager::readGhosts(bool isNew)
+{
+	std::ifstream ghosts;
+
+	if (!isNew)
+	{
+		ghosts.open(ghostsPath.QString::toStdString(), std::ios::in);
+		if (ghosts.fail())
+		{
+			QMessageBox::critical(this, "Error", "Failed to open ghosts file");
+			return true;
+		}
+		std::getline(ghosts, playerGhostsData);
+		ghosts.close();
+
+		// Back up data
+		playerGhostsDataBck = playerGhostsData;
+	}
+	else
+	{
+		ghosts.open(newGhostsPath.QString::toStdString(), std::ios::in);
+		if (ghosts.fail())
+		{
+			QMessageBox::critical(this, "Error", "Failed to open ghosts file");
+			return true;
+		}
+		std::getline(ghosts, newGhostsData);
+		ghosts.close();
+	}
+
+	return false;
 }
 
 // Read ghost data into vectors
@@ -486,10 +624,6 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 		}
 	}
 
-	// Store original items
-	if (isNew == false)
-		bckItems = items;
-
 	// Check if all brackets and braces are closed at end
 	if (numOpenBraces != 0 || numOpenBrackets != 0)
 	{
@@ -499,8 +633,11 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 		return true;
 	}
 
-	if (isNew == false)
+	if (!isNew)
 	{
+		// Store original items
+		bckItems = items;
+
 		// Pull the necessary info from each item
 		for (int i = 0; i < items.size(); ++i)
 		{
@@ -564,7 +701,7 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 					break;
 
 				// If current char is being recorded but isn't string data
-				if (numQuotes == 0 && recordingValue == true)
+				if (numQuotes == 0 && recordingValue)
 				{
 					if (items.at(i)[j] == ',')
 					{
@@ -589,7 +726,7 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 		bckCars = cars;
 		bckTimes = times;
 	}
-	else if (isNew == true)
+	else if (isNew)
 	{
 		// Pull the necessary info from each item
 		for (int i = 0; i < newItems.size(); ++i)
@@ -622,7 +759,7 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 						if (tmpString == "_map" || tmpString == "_class" || tmpString == "_car" || tmpString == "_finishTime")
 							tmpFieldName = tmpString;
 						// Save field values to vectors
-						else if (recordingValue == true)
+						else if (recordingValue)
 						{
 							if (tmpFieldName == "_map")
 								newMaps.push_back(tmpString);
@@ -654,7 +791,7 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 					break;
 
 				// If current char is being recorded but isn't string data
-				if (numQuotes == 0 && recordingValue == true)
+				if (numQuotes == 0 && recordingValue)
 				{
 					if (newItems.at(i)[j] == ',')
 					{
@@ -680,15 +817,21 @@ bool AoRGhostManager::parseGhostData(std::string ghosts, bool isNew)
 }
 
 // Set up ghost tables with headers and row/column count
-void AoRGhostManager::setUpTables()
+void AoRGhostManager::setUpTable(bool setUpNew)
 {
 	QStringList hHeaders = { "Map", "Class", "Car", "Time" };
-	ui.ghostsLeft->setRowCount(items.size());
-	ui.ghostsLeft->setColumnCount(4);
-	ui.ghostsLeft->setHorizontalHeaderLabels(hHeaders);
-	ui.ghostsRight->setRowCount(newItems.size());
-	ui.ghostsRight->setColumnCount(4);
-	ui.ghostsRight->setHorizontalHeaderLabels(hHeaders);
+	if (!setUpNew)
+	{
+		ui.ghostsLeft->setRowCount(items.size());
+		ui.ghostsLeft->setColumnCount(4);
+		ui.ghostsLeft->setHorizontalHeaderLabels(hHeaders);
+	}
+	else
+	{
+		ui.ghostsRight->setRowCount(newItems.size());
+		ui.ghostsRight->setColumnCount(4);
+		ui.ghostsRight->setHorizontalHeaderLabels(hHeaders);
+	}
 }
 
 // ***** Constructors *****

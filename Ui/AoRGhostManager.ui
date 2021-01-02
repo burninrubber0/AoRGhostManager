@@ -182,6 +182,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnTransferLeft">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>&lt;&lt;</string>
             </property>
@@ -205,6 +208,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnTransferRight">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>&gt;&gt;</string>
             </property>
@@ -244,6 +250,9 @@
           <property name="text">
            <string/>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
           <property name="placeholderText">
            <string>Choose player ghosts file...</string>
           </property>
@@ -276,6 +285,9 @@
          <widget class="QLineEdit" name="lnNewGhostsFile">
           <property name="text">
            <string/>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
           </property>
           <property name="placeholderText">
            <string>Choose new ghosts file...</string>

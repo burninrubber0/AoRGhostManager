@@ -27,6 +27,7 @@ private:
 	std::string playerGhostsDataBck;
 	int numOpenBraces = 0;
 	int numOpenBrackets = 0;
+	std::vector<bool> tableLoaded = { false, false };
 
 	// Ghost data
 	std::vector<std::string> items;
@@ -54,17 +55,20 @@ private:
 	std::vector<bool> isReplaced; // Red
 
 	void connectActions();
-	void loadTables(std::string g0, std::string g1);
+	void loadTable(bool loadNew);
+	bool readGhosts(bool readNew);
 	bool parseGhostData(std::string ghosts, bool isNew);
-	void setUpTables();
+	void setUpTable(bool setUpNew);
 
 private slots:
-	bool openGhosts();
+	void openGhosts();
 	void saveGhosts(QString path);
 	void saveGhostsAs();
 	void exitGm();
 	void about();
 	void transferLeft();
 	void transferRight();
-	void search(QLineEdit* line, QTableWidget* table);
+	void search(QLineEdit* line, QComboBox* comboBox, QTableWidget* table);
+	void openPlayerGhosts();
+	void openNewGhosts();
 };
