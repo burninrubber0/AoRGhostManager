@@ -65,9 +65,7 @@ void AoRGhostRemover::saveGhosts()
 
 void AoRGhostRemover::exitGr()
 {
-	if (QMessageBox::warning(this, "Warning", "Are you sure? Any unsaved data will be lost.",
-		QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes)
-		QDialog::close();
+	QDialog::close();
 }
 
 // ***** UI *****
