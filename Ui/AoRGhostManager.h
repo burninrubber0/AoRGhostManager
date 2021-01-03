@@ -70,9 +70,7 @@ private:
 			event->ignore();
 			if (QMessageBox::warning(this, "Warning", "Are you sure? Any unsaved changes will be lost.",
 				QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes)
-			{
 				event->accept();
-			}
 		}
 		else
 			event->accept();
@@ -118,6 +116,14 @@ private:
 
 	bool parseGhostData();
 	void connectActions();
+
+	void closeEvent(QCloseEvent* event)
+	{
+		event->ignore();
+		if (QMessageBox::warning(this, "Warning", "Are you sure? Any unsaved changes will be lost.",
+			QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes)
+			event->accept();
+	}
 
 private slots:
 	void saveGhosts();
