@@ -16,7 +16,8 @@
 void AoRGhostManager::openGhosts()
 {
 	openPlayerGhosts();
-	openNewGhosts();
+	if (ghostsPath.length() != 0)
+		openNewGhosts();
 }
 
 // Save ghosts to file
@@ -54,18 +55,7 @@ void AoRGhostManager::saveGhostsAs()
 // Exit program
 void AoRGhostManager::exitGm()
 {
-	if (tableLoaded.at(0))
-	{
-		if (QMessageBox::warning(this, "Warning", "Are you sure? Any unsaved changes will be lost.",
-			QMessageBox::Yes, QMessageBox::No) == QMessageBox::Yes)
-		{
-			QApplication::quit();
-		}
-	}
-	else
-	{
-		QApplication::quit();
-	}
+	QApplication::quit();
 }
 
 // Bring up the about window

@@ -3,10 +3,12 @@
 #include <fstream>
 
 #include <QDialog>
+#include <QFile>
 #include <QFileDialog>
 #include <QTableWidget>
 
 // ***** Slots *****
+// Set ghost to be removed on save
 void AoRGhostRemover::removeGhost()
 {
 	foreach(QModelIndex index, rm.tableGhosts->selectionModel()->selectedRows())
@@ -18,6 +20,7 @@ void AoRGhostRemover::removeGhost()
 	}
 }
 
+// Unset ghost to be removed on save
 void AoRGhostRemover::addGhost()
 {
 	foreach(QModelIndex index, rm.tableGhosts->selectionModel()->selectedRows())
@@ -32,37 +35,75 @@ void AoRGhostRemover::addGhost()
 	}
 }
 
-void AoRGhostRemover::saveGhosts()
+// Save ghosts to ghosts file
+bool AoRGhostRemover::saveGhosts()
 {
-	std::ofstream ghosts;
-	std::ofstream backup;
+	int numKeptRows = 0;
 
-	QFileInfo backupInfo(ghostsPath);
-	QString backupPath = backupInfo.dir().path() + "/Ghosts.original.txt";
-	backup.open(backupPath.toStdString(), std::ios::out);
-	backup << backupData;
-	backup.close();
-
-	for (int i = items.size() - 1; i >= 0; --i)
-	{
-		if (rm.tableGhosts->item(i, 0)->background() == Qt::red)
-			items.erase(items.begin() + i);
-	}
-
-	ghosts.open(ghostsPath.toStdString(), std::ios::out);
-	ghosts << "{\"Items\":[";
 	for (int i = 0; i < items.size(); ++i)
 	{
-		ghosts << items.at(i) << '}';
-		if (i != items.size() - 1)
-			ghosts << ',';
+		if (rm.tableGhosts->item(i, 0)->background() != Qt::red)
+			numKeptRows += 1;
 	}
-	ghosts << "]}";
-	ghosts.close();
 
-	QDialog::close();
+	if (numKeptRows > 0)
+	{
+
+		QFileInfo backupInfo(ghostsPath);
+		QString backupPath = backupInfo.dir().path() + "/Ghosts.original.txt";
+
+		QFile ghosts(ghostsPath);
+		QFile backup(backupPath);
+
+		if (!backup.open(QIODevice::WriteOnly | QIODevice::Text))
+		{
+			QMessageBox::critical(this, "Cannot open file", "File failed to open backup file for writing.",
+				QMessageBox::NoButton, QMessageBox::Ok);
+			return true;
+		}
+
+		if (!ghosts.open(QIODevice::WriteOnly | QIODevice::Text))
+		{
+			QMessageBox::critical(this, "Cannot open file", "File failed to open ghosts file for writing.",
+				QMessageBox::NoButton, QMessageBox::Ok);
+			return true;
+		}
+
+		QTextStream backupStream(&backup);
+		backupStream << backupData;
+		backup.close();
+
+		for (int i = items.size() - 1; i >= 0; --i)
+		{
+			if (rm.tableGhosts->item(i, 0)->background() == Qt::red)
+			{
+				rm.tableGhosts->removeRow(i);
+				items.erase(items.begin() + i);
+			}
+		}
+
+		QTextStream ghostsStream(&ghosts);
+		ghostsStream << "{\"Items\":[";
+		for (int i = 0; i < items.size(); ++i)
+		{
+			ghostsStream << items.at(i) << '}';
+			if (i != items.size() - 1)
+				ghostsStream << ',';
+		}
+		ghostsStream << "]}";
+		ghosts.close();
+
+		QMessageBox::information(this, "Save Successful", "File saved successfully.",
+			QMessageBox::NoButton, QMessageBox::Ok);
+	}
+	else
+		QMessageBox::warning(this, "No Items to Save", "Please select at least one item to save.",
+			QMessageBox::NoButton, QMessageBox::Ok);
+
+	return false;
 }
 
+// Close remover dialog
 void AoRGhostRemover::exitGr()
 {
 	QDialog::close();
@@ -70,20 +111,29 @@ void AoRGhostRemover::exitGr()
 
 // ***** UI *****
 // Open ghosts file
-void AoRGhostRemover::openGhostsFile()
+bool AoRGhostRemover::openGhostsFile()
 {
-	std::ifstream ghosts;
-
 	ghostsPath = QFileDialog::getOpenFileName(this, tr("Select your Ghosts.txt"), defaultGhostsPath, tr("Ghosts file (*.txt)"));
 
-	ghosts.open(ghostsPath.toStdString(), std::ios::in);
-	std::getline(ghosts, ghostsData);
-	ghosts.close();
+	QFile ghosts(ghostsPath);
+
+	if (!ghosts.open(QIODevice::ReadOnly | QIODevice::Text))
+	{
+		QMessageBox::critical(this, "Cannot open file", "File failed to open.",
+			QMessageBox::NoButton, QMessageBox::Ok);
+		return true;
+	}
+
+	while (!ghosts.atEnd())
+		ghostsData = ghosts.readLine();
 
 	// Store original data
 	backupData = ghostsData;
+
+	return false;
 }
 
+// Load ghosts into table
 void AoRGhostRemover::loadRmTable()
 {
 	if (!parseGhostData())
@@ -96,10 +146,10 @@ void AoRGhostRemover::loadRmTable()
 			QTableWidgetItem* itm1 = new QTableWidgetItem;
 			QTableWidgetItem* itm2 = new QTableWidgetItem;
 			QTableWidgetItem* itm3 = new QTableWidgetItem;
-			itm0->setText(QString::fromStdString(maps.at(i)));
-			itm1->setText(QString::fromStdString(classes.at(i)));
-			itm2->setText(QString::fromStdString(cars.at(i)));
-			itm3->setText(QString::fromStdString(times.at(i)));
+			itm0->setText(maps.at(i));
+			itm1->setText(classes.at(i));
+			itm2->setText(cars.at(i));
+			itm3->setText(times.at(i));
 			rm.tableGhosts->setItem(i, 0, itm0);
 			rm.tableGhosts->setItem(i, 1, itm1);
 			rm.tableGhosts->setItem(i, 2, itm2);
@@ -110,10 +160,11 @@ void AoRGhostRemover::loadRmTable()
 		QDialog::close();
 }
 
+// Parse JS ghost data
 bool AoRGhostRemover::parseGhostData()
 {
-	std::string start;
-	std::string tmpItem;
+	QString start;
+	QString tmpItem;
 	int numOpenBraces = 0;
 	int numOpenBrackets = 0;
 
@@ -172,8 +223,8 @@ bool AoRGhostRemover::parseGhostData()
 	{
 		bool recordingValue = false;
 		int numQuotes = 0;
-		std::string tmpString;
-		std::string tmpFieldName;
+		QString tmpString;
+		QString tmpFieldName;
 
 		for (int j = 0; j < items.at(i).length(); ++j)
 		{
@@ -252,10 +303,11 @@ bool AoRGhostRemover::parseGhostData()
 	return false;
 }
 
+// Connect signals to slots
 void AoRGhostRemover::connectActions()
 {
 	connect(rm.btnRemove, &QPushButton::clicked, this, &AoRGhostRemover::removeGhost);
 	connect(rm.btnAdd, &QPushButton::clicked, this, &AoRGhostRemover::addGhost);
 	connect(rm.btnSave, &QPushButton::clicked, this, &AoRGhostRemover::saveGhosts);
-	connect(rm.btnCancel, &QPushButton::clicked, this, &AoRGhostRemover::exitGr);
+	connect(rm.btnClose, &QPushButton::clicked, this, &AoRGhostRemover::exitGr);
 }

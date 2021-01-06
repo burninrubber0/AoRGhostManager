@@ -97,7 +97,7 @@ class AoRGhostRemover : public QDialog
 public:
 	AoRGhostRemover(QWidget* parent = Q_NULLPTR);
 
-	void openGhostsFile();
+	bool openGhostsFile();
 	void loadRmTable();
 
 private:
@@ -106,13 +106,13 @@ private:
 	QString defaultGhostsPath = QStandardPaths::standardLocations(QStandardPaths::HomeLocation).at(0)
 		+ "/AppData/LocalLow/Funselektor Labs/art of rally/cloud";
 	QString ghostsPath;
-	std::string ghostsData;
-	std::string backupData;
-	std::vector<std::string> items;
-	std::vector<std::string> maps;
-	std::vector<std::string> classes;
-	std::vector<std::string> cars;
-	std::vector<std::string> times;
+	QString ghostsData;
+	QString backupData;
+	std::vector<QString> items;
+	std::vector<QString> maps;
+	std::vector<QString> classes;
+	std::vector<QString> cars;
+	std::vector<QString> times;
 
 	bool parseGhostData();
 	void connectActions();
@@ -126,7 +126,7 @@ private:
 	}
 
 private slots:
-	void saveGhosts();
+	bool saveGhosts();
 	void exitGr();
 	void removeGhost();
 	void addGhost();
